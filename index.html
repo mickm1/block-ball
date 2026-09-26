@@ -72,6 +72,7 @@ summary{cursor:pointer; font-size:22px}
 .slot.cpu{color:#b3a3c6}
 #tags{position:fixed; inset:0; pointer-events:none; overflow:hidden}
 .tag{position:absolute; left:0; top:0; text-align:center; will-change:transform}
+.tag.talk .nm::after{content:' 🔊'}
 .tag .nm{display:inline-block; font-family:var(--pixel); font-size:9px; color:#1b1524; background:var(--pc); padding:3px 4px; box-shadow:2px 2px 0 #000}
 .meter{width:min(170px, 40vw); height:20px; margin:6px auto 0; border:3px solid #fff; box-shadow:3px 3px 0 #000; position:relative; display:none;
   background:linear-gradient(90deg, #1f5fe0 0%, #2fb0e8 calc(50% - var(--z,9%) - 14%), #3ed17a calc(50% - var(--z,9%)), #3ed17a calc(50% + var(--z,9%)), #f2c230 calc(50% + var(--z,9%) + 14%), #e8343a 100%)}
@@ -115,6 +116,12 @@ summary{cursor:pointer; font-size:22px}
   padding:4px 10px; font-size:18px; pointer-events:none !important; display:none; white-space:nowrap}
 @media (orientation: portrait){ #tRotate{display:block} }
 .pbtn.touchOnly{display:block}
+#tTalk{width:72px; height:72px; left:calc(env(safe-area-inset-left,0px) + 18px); top:calc(env(safe-area-inset-top,0px) + 70px); background:#b9f5c9; font-size:24px}
+.vmeter{position:relative; height:16px; border:2px solid var(--line); margin:10px 0 4px; background:var(--bg)}
+.vmeter i{position:absolute; left:0; top:0; bottom:0; width:0; background:var(--muted)}
+.vmeter i.open{background:#3ed17a}
+.vmeter b{position:absolute; top:-5px; bottom:-5px; width:3px; margin-left:-1px; background:var(--ember)}
+.guest .spk{width:1.4em; text-align:center; opacity:.25} .guest .spk.on{opacity:1}
 #toast{position:fixed; top:calc(env(safe-area-inset-top,0px) + 74px); left:50%; transform:translateX(-50%); background:#1b1524; color:#f7efe1;
   border:2px solid #f7efe1; padding:4px 12px; font-size:20px; pointer-events:none; opacity:0; transition:opacity .2s; white-space:nowrap; max-width:94%; overflow:hidden; text-overflow:ellipsis}
 #toast.show{opacity:1}
@@ -146,6 +153,7 @@ summary{cursor:pointer; font-size:22px}
   <button class="tsmall" id="tMenu" type="button" aria-label="Menu">☰</button>
   <button class="tsmall" id="tFull" type="button" aria-label="Full screen">⛶</button>
   <button id="tJoin" type="button">Tap to play</button>
+  <button class="tbtn" id="tTalk" type="button" aria-label="Push to talk" hidden>🎤</button>
   <div id="tRotate">Turn your phone sideways for more room</div>
 </div>
 <div id="fps" hidden></div>
@@ -165,6 +173,7 @@ summary{cursor:pointer; font-size:22px}
     <p class="note">Your name is saved on this device.</p>
     <button class="pbtn main" id="hostPageBtn" type="button">Host game</button>
     <button class="pbtn" id="joinPageBtn" type="button">Join game</button>
+    <button class="pbtn" id="voicePageBtn" type="button">Voice chat</button>
     <p class="note">Online play needs the game opened from its own web address, such as GitHub Pages. Players connect directly to each other. Public BitTorrent trackers only help them find each other.</p>
     <button class="pbtn" id="netBackBtn" type="button">Back</button>
   </div>
@@ -190,6 +199,17 @@ summary{cursor:pointer; font-size:22px}
     <button class="pbtn main" id="touchJoinGuestBtn" type="button" hidden>Play with touch controls</button>
     <button class="pbtn" id="touchTeamBtn" type="button" hidden>Switch team</button>
     <button class="pbtn" id="joinBackBtn" type="button">Back</button>
+  </div>
+  <div id="voicePage" hidden>
+    <h2 class="group">Voice chat</h2>
+    <button class="pbtn" id="vHearBtn" type="button">Hear friends: On</button>
+    <button class="pbtn main" id="vMicBtn" type="button">Microphone: Off</button>
+    <button class="pbtn" id="vModeBtn" type="button">Mode: Voice-activated</button>
+    <button class="pbtn" id="vSensBtn" type="button">Sensitivity: 3</button>
+    <div class="vmeter" id="vMeter" hidden><i></i><b></b></div>
+    <p class="note" id="vNote"></p>
+    <div id="vPeers"></div>
+    <button class="pbtn" id="vBackBtn" type="button">Back</button>
   </div>
   <div id="mainPage">
   <p class="tagline">Five on five pixel hoops for up to four players. Anyone can press start to jump in, even mid-game.</p>
@@ -592,7 +612,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 const mouse = { x:innerWidth/2, y:innerHeight/2, buttons:0 };
-const touch = { enabled: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches, mx:0, mz:0, shoot:false, grab:false, pass:false, start:false,
+const touch = { enabled: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches, mx:0, mz:0, shoot:false, grab:false, pass:false, start:false, talk:false,
   pulseStart:0, pulseGrab:0, stickId:null, ox:0, oy:0, uiKey:'' };
 function noteTouch(e){ if (e.pointerType === 'touch'){ if (!touch.enabled){ touch.enabled = true; renderMenu(); renderNet(); } return true; } return false; }
 addEventListener('pointermove', e => { if (noteTouch(e)) return; mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -1153,12 +1173,13 @@ const MENU = [
 let menuPage = 'main';
 const PAGE_BTNS = {
   main:['netBtn','gfxBtn','startBtn'], gfx:['backBtn'],
-  net:['hostPageBtn','joinPageBtn','nameRandBtn','netBackBtn'],
+  net:['hostPageBtn','joinPageBtn','voicePageBtn','nameRandBtn','netBackBtn'],
+  voice:['vHearBtn','vMicBtn','vModeBtn','vSensBtn','vBackBtn'],
   host:['hostCreateBtn','copyLinkBtn','shareBtn','lockBtn','newCodeBtn','stopHostBtn','hostBackBtn'],
   join:['joinBtn','joinBackBtn'],
 };
-const PAGES = ['main','gfx','net','host','join'];
-const PARENT = { gfx:['main','gfxBtn'], net:['main','netBtn'], host:['net','hostPageBtn'], join:['net','joinPageBtn'] };
+const PAGES = ['main','gfx','net','host','join','voice'];
+const PARENT = { gfx:['main','gfxBtn'], net:['main','netBtn'], host:['net','hostPageBtn'], join:['net','joinPageBtn'], voice:['net','voicePageBtn'] };
 const focusables = () => [
   ...MENU.map((m, i) => ((m.gfx ? 'gfx' : 'main') === menuPage ? i : -1)).filter(i => i >= 0),
   ...PAGE_BTNS[menuPage].filter(id => { const el = $('#' + id); return el && !el.hidden && !(el.closest('[hidden]')); }),
@@ -1399,7 +1420,8 @@ function setName(v){
 
 const net = { mode:null, room:null, code:'', selfId:'', hostId:null, hostName:'', peers:new Map(), pendingNames:new Map(),
   banned:new Set(), ignored:new Set(), rejected:new Set(), locked:false, act:{}, dirty:false, lastSnap:0, inGame:false,
-  cfg:null, names:new Map(), saved:null, findTimer:0, trackTimer:0, pausedShown:false, warn:'' };
+  cfg:null, names:new Map(), saved:null, findTimer:0, trackTimer:0, pausedShown:false, warn:'',
+  roles:new Map(), connected:new Set(), members:new Map(), mateNames:new Map() };
 const netInputs = new Map();          // host: 'r:<peer>:<device>' -> latest input from a friend
 const gC = {};                        // guest: press counters and shot timing per local device
 let gLastSend = 0, gLastKey = '';
@@ -1447,10 +1469,13 @@ async function openRoom(T0){
       await send({ v:1, proof:myProof, role:net.mode, name:playerName });
       const { data } = await receive();
       if (!data || data.proof !== await sha256hex(code + ':' + peerId)) throw new Error('bad code');
-      const ok = net.mode === 'host' ? data.role === 'guest' : data.role === 'host';
+      // friends connect to the host for the game, and to each other only for voice
+      const ok = net.mode === 'host' ? data.role === 'guest' : (data.role === 'host' || data.role === 'guest');
       if (!ok){ net.rejected.add(peerId); throw new Error('not needed'); }
+      net.roles.set(peerId, data.role);
       if (net.mode === 'host') net.pendingNames.set(peerId, cleanName(data.name) || 'Guest');
-      else net.hostName = cleanName(data.name) || 'Host';
+      else if (data.role === 'host') net.hostName = cleanName(data.name) || 'Host';
+      else net.mateNames.set(peerId, cleanName(data.name) || 'Friend');
     },
     onJoinError: d => { if (d && net.rejected.has(d.peerId)) return; onNetJoinError(d); },
   });
@@ -1458,7 +1483,8 @@ async function openRoom(T0){
   net.act = {};
   for (const n of ['cfg','snap','fx','deny','in','nm']) net.act[n] = room.makeAction(n);
   room.onPeerJoin = pid => net.mode === 'host' ? hostPeerJoin(pid) : guestPeerJoin(pid);
-  room.onPeerLeave = pid => net.mode === 'host' ? hostPeerLeave(pid) : guestPeerLeave(pid);
+  room.onPeerLeave = pid => { voicePeerGone(pid); net.mode === 'host' ? hostPeerLeave(pid) : guestPeerLeave(pid); };
+  room.onPeerStream = (stream, pid) => attachRemote(stream, pid);
   if (net.mode === 'host'){
     net.act.in.onMessage = (d, meta) => hostOnInput(d, meta && meta.peerId);
     net.act.nm.onMessage = (d, meta) => {
@@ -1488,6 +1514,7 @@ function onNetJoinError(d){
 }
 function leaveRoom(){
   clearTimeout(net.findTimer); clearTimeout(net.trackTimer);
+  voiceUnpublish();
   if (net.room){ try { net.room.leave(); } catch (e) {} }
   const wasGuest = net.mode === 'guest';
   if (wasGuest && net.inGame) exitClientGame(false);
@@ -1495,6 +1522,8 @@ function leaveRoom(){
   netInputs.clear();
   Object.assign(net, { mode:null, room:null, hostId:null, hostName:'', act:{}, cfg:null, inGame:false, warn:'', locked:false, pausedShown:false });
   net.peers.clear(); net.pendingNames.clear(); net.names = new Map();
+  net.roles.clear(); net.connected.clear(); net.members.clear(); net.mateNames.clear();
+  voiceReset(); renderVoice();
   refreshHumans(); renderMenu(); renderNet();
 }
 
@@ -1514,19 +1543,20 @@ function hostPeerJoin(pid){
   const why = net.banned.has(pid) ? 'kicked' : net.locked ? 'locked' : net.peers.size >= MAX_GUESTS ? 'full' : '';
   if (why){ net.ignored.add(pid); tx('deny', { why }, pid); return; }
   net.peers.set(pid, { name });
-  toast(`${name} connected`); refreshHumans(); renderMenu(); renderNet(); markDirty();
+  toast(`${name} connected`); refreshHumans(); renderMenu(); renderNet(); markDirty(); voiceSync(); renderVoice();
 }
 function dropPeerInputs(pid){ for (const id of [...netInputs.keys()]) if (peerOfDev(id) === pid) netInputs.delete(id); }
 function hostPeerLeave(pid){
   const pr = net.peers.get(pid);
   net.peers.delete(pid); net.ignored.delete(pid); dropPeerInputs(pid);
   if (pr){ toast(`${pr.name} left`); renderNet(); markDirty(); }
+  voiceSync(); renderVoice();
 }
 function kickPeer(pid){
   const pr = net.peers.get(pid); if (!pr) return;
   net.banned.add(pid); tx('deny', { why:'kicked' }, pid);
   net.peers.delete(pid); dropPeerInputs(pid);
-  toast(`${pr.name} was removed`); renderNet(); markDirty();
+  toast(`${pr.name} was removed`); renderNet(); markDirty(); voicePeerGone(pid); voiceSync(); renderVoice();
 }
 const DEV_OK = /^(kbA|kbB|mouse|touch|pad\d{1,2})$/;
 function hostOnInput(d, pid){
@@ -1544,7 +1574,8 @@ function hostOnInput(d, pid){
 function buildCfg(){
   return { v:1, host:playerName, ui: ui === 'menu' ? 'menu' : 'game', auto:autoEligible(),
     s:{ control:settings.control, diff:settings.diff, target:settings.target },
-    lobby: lobby.map(e => ({ dev:e.dev, name:nameOfDev(e.dev), team:e.team })) };
+    lobby: lobby.map(e => ({ dev:e.dev, name:nameOfDev(e.dev), team:e.team })),
+    members: [{ id:net.selfId, name:playerName }, ...[...net.peers].map(([id, pr]) => ({ id, name:pr.name }))] };
 }
 function buildSnap(now){
   const p = [];
@@ -1584,6 +1615,8 @@ async function joinRoomCode(v){
   renderNet();
 }
 function guestPeerJoin(pid){
+  net.connected.add(pid);
+  if (net.roles.get(pid) !== 'host'){ voiceSync(); renderVoice(); return; }   // another friend: voice only
   if (net.hostId) return;
   net.hostId = pid; clearTimeout(net.findTimer);
   tx('nm', playerName, pid);
@@ -1592,7 +1625,8 @@ function guestPeerJoin(pid){
   renderNet(); renderMenu();
 }
 function guestPeerLeave(pid){
-  if (pid !== net.hostId) return;
+  net.connected.delete(pid);
+  if (pid !== net.hostId){ renderVoice(); return; }
   const who = net.hostName || 'The host';
   leaveRoom(); toMenu(); showPage('join', 'joinBtn');
   setJoinStatus(`${who} closed the room.`); toast(`${who} left the game`);
@@ -1611,6 +1645,9 @@ function guestOnCfg(d){
   const lob = Array.isArray(d.lobby) ? d.lobby.slice(0, 4) : [];
   net.cfg.lobby = lob.map(e => ({ dev:String(e && e.dev || '').slice(0, 80), name:cleanName(e && e.name), team: e && e.team ? 1 : 0 }));
   net.names = new Map(net.cfg.lobby.map(e => [e.dev, e.name]));
+  net.members = new Map((Array.isArray(d.members) ? d.members.slice(0, 8) : [])
+    .filter(m => m && typeof m.id === 'string' && m.id !== net.selfId).map(m => [m.id.slice(0, 80), cleanName(m.name) || 'Friend']));
+  voiceSync(); renderVoice();
   if (d.ui === 'game' && !net.inGame) enterClientGame();
   else if (d.ui === 'menu' && net.inGame) exitClientGame(true);
   if (net.inGame){ refreshClientTags(); updateScore(); }
@@ -1831,12 +1868,14 @@ function resetTouch(){
 function updateTouchUI(){
   const show = touch.enabled && ui === 'game' && !game.demo;
   const joined = show && touchJoined();
-  const key = (show ? 1 : 0) + ':' + (joined ? 1 : 0);
+  const ptt = show && vs.micOn && vs.mode === 'ptt';
+  const key = (show ? 1 : 0) + ':' + (joined ? 1 : 0) + ':' + (ptt ? 1 : 0);
   if (key === touch.uiKey) return;
   touch.uiKey = key;
   $('#touchUI').hidden = !show;
   if (!show) { resetTouch(); return; }
   for (const id of ['tShoot','tGrab','tPass','stickZone']) $('#' + id).hidden = !joined;
+  $('#tTalk').hidden = !ptt;
   $('#tJoin').hidden = joined;
   $('#tFull').hidden = !(document.fullscreenEnabled && document.documentElement.requestFullscreen);
   if (!joined) resetTouch();
@@ -1874,7 +1913,7 @@ function initTouchUI(){
     for (const ev of ['pointerup','pointercancel','lostpointercapture']) el.addEventListener(ev, up);
     el.addEventListener('contextmenu', e => e.preventDefault());
   };
-  hold('tShoot', 'shoot'); hold('tGrab', 'grab'); hold('tPass', 'pass');
+  hold('tShoot', 'shoot'); hold('tGrab', 'grab'); hold('tPass', 'pass'); hold('tTalk', 'talk');
   const tap = (id, fn) => $('#' + id).addEventListener('pointerdown', e => { e.preventDefault(); buzz(); fn(); });
   tap('tMenu', () => { touch.pulseStart = 2; });
   tap('tJoin', () => { touch.pulseStart = 2; });
@@ -1888,6 +1927,181 @@ function initTouchUI(){
   $('#touchJoinGuestBtn').onclick = pulseStart;
   $('#touchTeamBtn').onclick = () => { touch.pulseGrab = 2; };
   renderMenu(); renderNet();
+}
+
+// ---------- voice chat (WebRTC audio through Trystero, with a local voice-activated gate) ----------
+const VOICE_STORE = 'blockball-voice';
+const SENS_MULT = [6, 4.5, 3.3, 2.5, 1.8];       // sensitivity 1..5: how far above room noise the voice must be
+const vs = { hear:true, mode:'vad', sens:3, micOn:false, ctx:null, mic:null, nodes:null, buf:null, floor:0.01, openUntil:0,
+  talking:false, level:0, sentTo:new Set(), remote:new Map(), muted:new Set(), busy:false };
+try { const v = JSON.parse(localStorage.getItem(VOICE_STORE) || '{}');
+  if (typeof v.hear === 'boolean') vs.hear = v.hear;
+  if (['vad','ptt','open'].includes(v.mode)) vs.mode = v.mode;
+  if (v.sens >= 1 && v.sens <= 5) vs.sens = v.sens | 0; } catch (e) {}
+function saveVoice(){ try { localStorage.setItem(VOICE_STORE, JSON.stringify({ hear:vs.hear, mode:vs.mode, sens:vs.sens })); } catch (e) {} }
+function ensureAudio(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!vs.ctx) vs.ctx = new AC();
+  if (vs.ctx.state === 'suspended') vs.ctx.resume().catch(() => {});
+  return vs.ctx;
+}
+// browsers only allow audio after a tap/click/key, so wake the audio engine on any interaction
+for (const ev of ['pointerdown','keydown']) addEventListener(ev, () => { if (vs.ctx || vs.remote.size) ensureAudio(); }, { passive:true });
+
+async function enableMic(){
+  if (vs.micOn || vs.busy) return;
+  const ctx = ensureAudio();
+  if (!ctx || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('Voice chat isn’t supported in this browser'); return; }
+  vs.busy = true;
+  try {
+    vs.mic = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+  } catch (e) {
+    vs.busy = false; toast('Microphone blocked. Allow it in your browser settings to talk.'); renderVoice(); return;
+  }
+  const src = ctx.createMediaStreamSource(vs.mic);
+  const band = ctx.createBiquadFilter(); band.type = 'bandpass'; band.frequency.value = 1000; band.Q.value = 0.7;
+  const an = ctx.createAnalyser(); an.fftSize = 512;
+  const delay = ctx.createDelay(1); delay.delayTime.value = 0.12;   // lets the gate open before the first syllable arrives
+  const gate = ctx.createGain(); gate.gain.value = 0;
+  const out = ctx.createMediaStreamDestination();
+  src.connect(band); band.connect(an);
+  src.connect(delay); delay.connect(gate); gate.connect(out);
+  vs.nodes = { src, band, an, delay, gate, out };
+  vs.buf = new Float32Array(an.fftSize); vs.floor = 0.01; vs.openUntil = 0;
+  vs.micOn = true; vs.busy = false;
+  voiceSync(); renderVoice();
+}
+function disableMic(){
+  voiceUnpublish();
+  if (vs.mic) vs.mic.getTracks().forEach(t => t.stop());
+  if (vs.nodes) for (const n of Object.values(vs.nodes)) { try { n.disconnect(); } catch (e) {} }
+  vs.mic = null; vs.nodes = null; vs.micOn = false; vs.talking = false;
+  renderVoice();
+}
+function voiceTargets(){
+  if (!net.room) return [];
+  if (net.mode === 'host') return [...net.peers.keys()];
+  if (net.mode === 'guest' && net.hostId) return [net.hostId, ...[...net.members.keys()].filter(id => net.connected.has(id) && id !== net.hostId)];
+  return [];
+}
+function voiceSync(){
+  if (!vs.micOn || !vs.nodes || !net.room) return;
+  const stream = vs.nodes.out.stream, want = new Set(voiceTargets());
+  for (const id of want) if (!vs.sentTo.has(id)){ try { net.room.addStream(stream, { target:id }); vs.sentTo.add(id); } catch (e) {} }
+  for (const id of [...vs.sentTo]) if (!want.has(id)){ try { net.room.removeStream(stream, { target:id }); } catch (e) {} vs.sentTo.delete(id); }
+}
+function voiceUnpublish(){
+  if (net.room && vs.nodes && vs.sentTo.size){ try { net.room.removeStream(vs.nodes.out.stream); } catch (e) {} }
+  vs.sentTo.clear();
+}
+function attachRemote(stream, pid){
+  const ctx = ensureAudio(); if (!ctx || !stream) return;
+  detachRemote(pid);
+  const el = new Audio(); el.srcObject = stream; el.muted = true; el.playsInline = true;   // Chrome needs the element for WebRTC audio to flow
+  const pr = el.play(); if (pr && pr.catch) pr.catch(() => {});
+  const src = ctx.createMediaStreamSource(stream);
+  const an = ctx.createAnalyser(); an.fftSize = 512;
+  const g = ctx.createGain(); g.gain.value = 0;
+  src.connect(an); src.connect(g); g.connect(ctx.destination);
+  vs.remote.set(pid, { el, src, an, g, buf:new Float32Array(512), speaking:false, until:0 });
+  renderVoice();
+}
+function detachRemote(pid){
+  const r = vs.remote.get(pid); if (!r) return;
+  try { r.src.disconnect(); r.g.disconnect(); } catch (e) {}
+  r.el.srcObject = null; vs.remote.delete(pid);
+}
+function voicePeerGone(pid){ detachRemote(pid); vs.sentTo.delete(pid); renderVoice(); }
+function voiceReset(){ for (const id of [...vs.remote.keys()]) detachRemote(id); vs.sentTo.clear(); vs.muted.clear(); }
+function voiceAllowed(pid){
+  if (net.mode === 'host') return net.peers.has(pid);
+  if (net.mode === 'guest') return pid === net.hostId || net.members.has(pid);
+  return false;
+}
+function voiceNameOf(pid){
+  if (net.mode === 'host'){ const pr = net.peers.get(pid); return pr ? pr.name : 'Friend'; }
+  if (pid === net.hostId) return net.hostName || 'Host';
+  return net.members.get(pid) || net.mateNames.get(pid) || 'Friend';
+}
+const pttHeld = () => keys.has('KeyT') || !!touch.talk || pads.some(g => g && g.connected && g.buttons[4] && g.buttons[4].pressed);
+const rmsOf = (an, buf) => { an.getFloatTimeDomainData(buf); let a = 0; for (let i = 0; i < buf.length; i++) a += buf[i]*buf[i]; return Math.sqrt(a/buf.length); };
+let vFrame = 0;
+function voiceTick(){
+  if (!vs.ctx) return;
+  const now = vs.ctx.currentTime;
+  if (vs.micOn && vs.nodes){
+    const rms = rmsOf(vs.nodes.an, vs.buf);
+    if (rms < vs.floor*2) vs.floor = vs.floor*0.995 + rms*0.005;          // learn the room noise while you're quiet
+    vs.floor = clamp(vs.floor, 0.0005, 0.05);
+    const thr = Math.max(vs.floor*SENS_MULT[vs.sens - 1], 0.004);
+    if (vs.mode === 'open') vs.openUntil = now + 1;
+    else if (vs.mode === 'ptt'){ if (pttHeld()) vs.openUntil = now + 0.15; }
+    else if (rms > thr) vs.openUntil = now + 0.4;                          // hang on briefly so word endings aren't cut
+    const open = now < vs.openUntil;
+    vs.nodes.gate.gain.setTargetAtTime(open ? 1 : 0, now, 0.01);
+    vs.talking = open && (vs.mode !== 'open' || rms > thr);
+    vs.level = rms;
+    if ((vFrame++ & 3) === 0 && menuPage === 'voice' && ui === 'menu'){
+      const db = r => clamp((20*Math.log10(Math.max(r, 1e-6)) + 60)/60, 0, 1);
+      const bar = $('#vMeter i'), mark = $('#vMeter b');
+      bar.style.width = (db(rms)*100) + '%'; bar.classList.toggle('open', open);
+      mark.style.left = (db(thr)*100) + '%'; mark.hidden = vs.mode !== 'vad';
+    }
+  } else vs.talking = false;
+  let changed = false;
+  for (const [pid, r] of vs.remote){
+    const on = vs.hear && voiceAllowed(pid) && !vs.muted.has(pid);
+    r.g.gain.value = on ? 1 : 0;
+    const spk = on && rmsOf(r.an, r.buf) > 0.015;
+    if (spk) r.until = now + 0.3;
+    const was = r.speaking; r.speaking = now < r.until;
+    if (was !== r.speaking) changed = true;
+  }
+  if (changed && menuPage === 'voice' && ui === 'menu') renderVoice();
+}
+function speakerOf(ctrl){
+  if (!ctrl || !net.mode) return null;
+  if (isRemote(ctrl)){ const pid = peerOfDev(ctrl); return pid === net.selfId ? 'self' : pid; }
+  return net.mode === 'host' ? 'self' : net.hostId;
+}
+function isSpeaking(id){
+  if (!id) return false;
+  if (id === 'self') return vs.talking;
+  const r = vs.remote.get(id); return !!(r && r.speaking);
+}
+const MODE_LABEL = { vad:'Voice-activated', ptt:'Push-to-talk', open:'Open mic' };
+function renderVoice(){
+  $('#vHearBtn').textContent = `Hear friends: ${vs.hear ? 'On' : 'Off'}`;
+  $('#vMicBtn').textContent = vs.busy ? 'Microphone: asking…' : `Microphone: ${vs.micOn ? 'On' : 'Off'}`;
+  $('#vModeBtn').textContent = `Mode: ${MODE_LABEL[vs.mode]}`;
+  $('#vSensBtn').textContent = `Sensitivity: ${vs.sens} of 5`;
+  $('#vSensBtn').hidden = vs.mode !== 'vad';
+  $('#vMeter').hidden = !vs.micOn;
+  $('#vNote').textContent = (vs.mode === 'ptt' ? 'Hold L1, T or the 🎤 touch button to talk. '
+      : vs.mode === 'vad' ? 'Your mic only sends while you’re talking. Raise sensitivity if words get cut off, lower it if noise gets through. '
+      : 'Your mic is always on. ')
+    + 'Headphones stop others hearing themselves. ' + (net.mode ? '' : 'Voice works once you host or join an online game.');
+  const ids = net.mode === 'host' ? [...net.peers.keys()] : net.mode === 'guest' && net.hostId ? [net.hostId, ...net.members.keys()].filter((v, i, a) => a.indexOf(v) === i) : [];
+  $('#vPeers').innerHTML = ids.length ? ids.map(id => {
+    const r = vs.remote.get(id), m = vs.muted.has(id);
+    return `<div class="guest"><span class="spk${r && r.speaking ? ' on' : ''}">🔊</span>${esc(voiceNameOf(id))}${r ? '' : ' <span class="note">(no mic)</span>'}`
+      + `<button type="button" data-mute="${esc(id)}">${m ? 'Unmute' : 'Mute'}</button></div>`;
+  }).join('') : '';
+  updateTouchUI();
+}
+function initVoiceUI(){
+  $('#voicePageBtn').onclick = () => showPage('voice');
+  $('#vBackBtn').onclick = () => showPage('net', 'voicePageBtn');
+  $('#vHearBtn').onclick = () => { vs.hear = !vs.hear; ensureAudio(); saveVoice(); renderVoice(); };
+  $('#vMicBtn').onclick = () => { if (vs.micOn) disableMic(); else { enableMic(); renderVoice(); } };
+  $('#vModeBtn').onclick = () => { const m = ['vad','ptt','open']; vs.mode = m[(m.indexOf(vs.mode) + 1) % 3]; saveVoice(); renderVoice(); renderMenu(); };
+  $('#vSensBtn').onclick = () => { vs.sens = vs.sens % 5 + 1; saveVoice(); renderVoice(); };
+  $('#vPeers').addEventListener('click', e => {
+    const b = e.target.closest('button[data-mute]'); if (!b) return;
+    const id = b.dataset.mute; vs.muted.has(id) ? vs.muted.delete(id) : vs.muted.add(id); renderVoice();
+  });
+  renderVoice();
 }
 // ---------- camera + overlays ----------
 let camX = 0;
@@ -1906,6 +2120,7 @@ function updateOverlays(){
     projV.set(p.pos.x, p.pos.y + 2.4*p.arch.scale, p.pos.z).project(camera);
     p.tag.style.display = '';
     p.tag.style.transform = `translate(${(projV.x + 1)/2*w}px, ${(1 - projV.y)/2*h}px) translate(-50%, -100%)`;
+    p.tag.classList.toggle('talk', isSpeaking(speakerOf(p.ctrl)));
     let st = p.shooting ? p.shootT : -1;
     if (net.mode === 'guest' && p.ctrl && p.ctrl.startsWith(`r:${net.selfId}:`)){
       const c = gC[localOfDev(p.ctrl)];
@@ -1988,6 +2203,7 @@ function frame(now){
   updateCamera(dt);
   updateOverlays();
   updateTouchUI();
+  voiceTick();
   renderer.render(scene, camera);
 }
 applyGfx();
@@ -1995,6 +2211,7 @@ renderMenu();
 newMatch(true);
 initNetUI();
 initTouchUI();
+initVoiceUI();
 requestAnimationFrame(tick);
 })();
 </script>
