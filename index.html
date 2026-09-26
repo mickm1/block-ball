@@ -174,7 +174,7 @@ summary{cursor:pointer; font-size:22px}
     <button class="pbtn main" id="hostPageBtn" type="button">Host game</button>
     <button class="pbtn" id="joinPageBtn" type="button">Join game</button>
     <button class="pbtn" id="voicePageBtn" type="button">Voice chat</button>
-    <p class="note">Online play needs the game opened from its own web address, such as GitHub Pages. Players connect directly to each other. Public BitTorrent trackers only help them find each other.</p>
+    <p class="note">Online play needs the game opened from its own web address, such as GitHub Pages. Players connect directly to each other. Public Nostr relays only help them find each other.</p>
     <button class="pbtn" id="netBackBtn" type="button">Back</button>
   </div>
   <div id="hostPage" hidden>
@@ -1394,8 +1394,8 @@ function handleMeta(){
 }
 
 
-// ---------- online play: Trystero over BitTorrent, host runs the match ----------
-const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/@trystero-p2p/torrent/+esm';
+// ---------- online play: Trystero over Nostr, host runs the match ----------
+const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/trystero/+esm';   // Trystero's default strategy is Nostr
 const APP_ID = 'block-ball-pixel-hoops-v1';
 const MAX_GUESTS = 4;
 const NAMES = ['Maya','Jordan','Priya','Mateo','Aisha','Liam','Sofia','Kenji','Amara','Noah','Leila','Diego','Hana','Omar','Zoe','Luca',
@@ -1462,7 +1462,12 @@ const inviteLink = () => location.origin + location.pathname + '#join=' + net.co
 async function openRoom(T0){
   const code = net.code, roomId = await sha256hex('blockball:' + code);
   const myProof = await sha256hex(code + ':' + T0.selfId);
-  const room = T0.joinRoom({ appId:APP_ID, password:code }, roomId, {
+  const room = T0.joinRoom({
+    appId:APP_ID, password:code,
+    rtcConfig:{ iceServers:[                      // a short list of fast STUN servers so connection setup finishes sooner
+      { urls:['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+      { urls:'stun:stun.cloudflare.com:3478' } ] },
+  }, roomId, {
     handshakeTimeoutMs: 10000,
     // Both sides prove they know the code; guests only ever connect to the host, never to each other.
     onPeerHandshake: async (peerId, send, receive) => {
@@ -1474,7 +1479,7 @@ async function openRoom(T0){
       if (!ok){ net.rejected.add(peerId); throw new Error('not needed'); }
       net.roles.set(peerId, data.role);
       if (net.mode === 'host') net.pendingNames.set(peerId, cleanName(data.name) || 'Guest');
-      else if (data.role === 'host') net.hostName = cleanName(data.name) || 'Host';
+      else if (data.role === 'host'){ net.hostName = cleanName(data.name) || 'Host'; if (!net.hostId) setJoinStatus(`Found ${net.hostName}. Finishing the connection…`); }
       else net.mateNames.set(peerId, cleanName(data.name) || 'Friend');
     },
     onJoinError: d => { if (d && net.rejected.has(d.peerId)) return; onNetJoinError(d); },
@@ -1502,7 +1507,7 @@ async function openRoom(T0){
   net.trackTimer = setTimeout(() => {
     let open = 0;
     try { for (const ws of Object.values(T0.getRelaySockets ? T0.getRelaySockets() : {})) if (ws && ws.readyState === 1) open++; } catch (e) { open = 1; }
-    net.warn = open ? '' : 'Can’t reach the BitTorrent trackers used to find players. If you’re playing inside Claude, open the game from its own web address (for example GitHub Pages).';
+    net.warn = open ? '' : 'Can’t reach the Nostr relays used to find players. If you’re playing inside Claude, open the game from its own web address (for example GitHub Pages).';
     renderNet();
   }, 8000);
 }
@@ -1608,11 +1613,31 @@ async function joinRoomCode(v){
     saved:{ control:settings.control, diff:settings.diff, target:settings.target } });
   net.names = new Map(); net.rejected.clear();
   try { await openRoom(T0); } catch (e) { leaveRoom(); setJoinStatus('Couldn’t join from here. Online play needs a secure (https) page.'); return; }
-  setJoinStatus(`Looking for room ${code}…`);
-  net.findTimer = setTimeout(() => {
-    if (net.mode === 'guest' && !net.hostId) setJoinStatus(`No host found for ${code} yet. Check the code, and that your host still has the room open. Still trying…`);
-  }, 20000);
+  net.searchStart = performance.now(); net.attempt = 1;
+  searchTick(T0);
   renderNet();
+}
+// While looking for the host: show relay progress every second, and every 20 s leave and rejoin the room so
+// fresh connection offers go out.
+function searchTick(T0){
+  clearTimeout(net.findTimer);
+  if (net.mode !== 'guest' || net.hostId) return;
+  const secs = Math.round((performance.now() - net.searchStart)/1000);
+  let open = 0, total = 0;
+  try { for (const ws of Object.values(T0.getRelaySockets ? T0.getRelaySockets() : {})){ total++; if (ws && ws.readyState === 1) open++; } } catch (e) {}
+  if (!/^Found /.test($('#joinStatus').textContent) || secs % 5 === 0){
+    setJoinStatus(total && !open ? `Connecting to the relays used to find your host… ${secs}s`
+      : `Looking for room ${net.code}… ${secs}s` + (total ? ` · ${open}/${total} relays` : '') + (net.attempt > 1 ? ` · try ${net.attempt}` : '')
+        + (secs >= 45 ? '. Check the code, and that your host still has the room open.' : ''));
+  }
+  if (secs >= net.attempt*20 && net.attempt < 6){
+    net.attempt++;
+    voiceUnpublish();
+    try { net.room.leave(); } catch (e) {}
+    net.connected.clear(); net.roles.clear();
+    openRoom(T0).catch(() => {});
+  }
+  net.findTimer = setTimeout(() => searchTick(T0), 1000);
 }
 function guestPeerJoin(pid){
   net.connected.add(pid);
@@ -1829,7 +1854,7 @@ function initNetUI(){
   nameIn.addEventListener('input', () => setName(nameIn.value));
   nameIn.addEventListener('change', () => { setName(nameIn.value); nameIn.value = playerName; });
   $('#nameRandBtn').onclick = () => { let n; do n = NAMES[(Math.random()*NAMES.length) | 0]; while (n === playerName); nameIn.value = n; setName(n); };
-  $('#netBtn').onclick = () => showPage('net');
+  $('#netBtn').onclick = () => { showPage('net'); loadTrystero().catch(() => {}); };
   $('#netBackBtn').onclick = () => showPage('main', 'netBtn');
   $('#hostPageBtn').onclick = () => showPage('host');
   $('#joinPageBtn').onclick = () => showPage('join');
