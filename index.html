@@ -163,18 +163,15 @@ summary{cursor:pointer; font-size:22px}
   <div id="gfxPage" hidden>
     <h2 class="group">Graphics</h2>
     <div id="gfxRows"></div>
-    <p class="note" id="gfxNote"></p>
     <button class="pbtn" id="backBtn" type="button">Back</button>
   </div>
   <div id="netPage" hidden>
     <h2 class="group">Network game</h2>
     <div class="field"><label for="nameIn">Your name</label></div>
     <div class="field"><input id="nameIn" maxlength="16" autocomplete="off" spellcheck="false"><button class="arr" id="nameRandBtn" type="button" aria-label="Pick a random name">🎲</button></div>
-    <p class="note">Your name is saved on this device.</p>
     <button class="pbtn main" id="hostPageBtn" type="button">Host game</button>
     <button class="pbtn" id="joinPageBtn" type="button">Join game</button>
     <button class="pbtn" id="voicePageBtn" type="button">Voice chat</button>
-    <p class="note">Online play needs the game opened from its own web address, such as GitHub Pages. Players connect directly to each other. Public Nostr relays only help them find each other.</p>
     <button class="pbtn" id="netBackBtn" type="button">Back</button>
   </div>
   <div id="hostPage" hidden>
@@ -188,13 +185,12 @@ summary{cursor:pointer; font-size:22px}
     <button class="pbtn" id="lockBtn" type="button" hidden>Lock room</button>
     <button class="pbtn" id="newCodeBtn" type="button" hidden>New code (drops everyone)</button>
     <button class="pbtn" id="stopHostBtn" type="button" hidden>Stop hosting</button>
-    <p class="note">Pick control, difficulty and points in the main menu, then press Start game. Friends see your settings until the game starts.</p>
     <button class="pbtn" id="hostBackBtn" type="button">Back</button>
   </div>
   <div id="joinPage" hidden>
     <h2 class="group">Join game</h2>
     <div class="field" id="codeRow"><input id="codeIn" maxlength="8" autocomplete="off" spellcheck="false" placeholder="ABC-123" aria-label="Room code"><button class="arr" id="joinBtn" type="button">Join</button></div>
-    <p class="note" id="joinStatus">Enter the code from your host, or open their invite link.</p>
+    <p class="note" id="joinStatus">Enter your host’s room code.</p>
     <div id="joinLobby" hidden></div>
     <button class="pbtn main" id="touchJoinGuestBtn" type="button" hidden>Play with touch controls</button>
     <button class="pbtn" id="touchTeamBtn" type="button" hidden>Switch team</button>
@@ -204,7 +200,6 @@ summary{cursor:pointer; font-size:22px}
     <h2 class="group">Sound</h2>
     <div id="soundRows"></div>
     <button class="pbtn" id="sndTestBtn" type="button">Play test sounds</button>
-    <p class="note">Retro sound effects are made on the fly by your browser. Voice chat volume isn’t affected.</p>
     <button class="pbtn" id="sndBackBtn" type="button">Back</button>
   </div>
   <div id="voicePage" hidden>
@@ -249,7 +244,6 @@ summary{cursor:pointer; font-size:22px}
   <h2 id="pauseTitle">Paused</h2>
   <button class="pbtn main" id="resumeBtn" type="button">Resume</button>
   <button class="pbtn" id="quitBtn" type="button">Quit to menu</button>
-  <p class="note" id="pauseNote">Move up or down to choose, ✕ / Space to select. Start or ○ resumes.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -277,12 +271,12 @@ const TEAMS = [
   { name:'TIDES',  color:'#2f7de1', dark:'#153f7a', trim:'#dff1ff' },
 ];
 const DIFF = {
-  rookie: { label:'ROOKIE', window:0.5,  assist:0.3,  biasK:0.45, contest:0.35, blockHit:0.3,  speed:0.78, timing:0.14, react:0.6,  steal:0.2,  block:0.5,  range:5.2 },
-  pro:    { label:'PRO',    window:0.38, assist:0.65, biasK:0.8,  contest:0.7,  blockHit:0.55, speed:0.9,  timing:0.08, react:0.35, steal:0.7,  block:0.75, range:6.4 },
-  legend: { label:'LEGEND', window:0.3,  assist:1,    biasK:1,    contest:1,    blockHit:0.8,  speed:1.0,  timing:0.04, react:0.18, steal:1.2,  block:1.0,  range:7.2 },
+  rookie: { label:'EASY',   window:0.5,  assist:0.3,  biasK:0.45, contest:0.35, blockHit:0.3,  speed:0.78, timing:0.14, react:0.6,  steal:0.2,  block:0.5,  range:5.2 },
+  pro:    { label:'MEDIUM', window:0.38, assist:0.65, biasK:0.8,  contest:0.7,  blockHit:0.55, speed:0.9,  timing:0.08, react:0.35, steal:0.7,  block:0.75, range:6.4 },
+  legend: { label:'HARD',   window:0.3,  assist:1,    biasK:1,    contest:1,    blockHit:0.8,  speed:1.0,  timing:0.04, react:0.18, steal:1.2,  block:1.0,  range:7.2 },
 };
-const settings = { control:'fixed', diff:'pro', target:11, fps:60, vsync:true, shadows:'high', showFps:false, sfxVol:'med', crowd:true };
-const GFX_KEYS = ['fps','vsync','shadows','showFps','sfxVol','crowd'], GFX_STORE = 'blockball-graphics';
+const settings = { control:'fixed', diff:'pro', target:11, fps:60, vsync:true, shadows:'high', sfxVol:'med', crowd:true };
+const GFX_KEYS = ['fps','vsync','shadows','sfxVol','crowd'], GFX_STORE = 'blockball-graphics';
 try { const g = JSON.parse(localStorage.getItem(GFX_STORE) || '{}'); for (const k of GFX_KEYS) if (k in g) settings[k] = g[k]; } catch (e) {}
 function saveGfx(){ try { const g = {}; for (const k of GFX_KEYS) g[k] = settings[k]; localStorage.setItem(GFX_STORE, JSON.stringify(g)); } catch (e) {} }
 const SKINS = ['#e9b98f','#8d5a3b','#f3d0ae','#b77a4e','#6b4028'];
@@ -299,7 +293,7 @@ const BASE_ARCH = { scale:1, speed:1, reach:1, shot:1, block:0, range:0 };
 // offensive formation (distance/angle from the hoop being attacked): point, two wings, corner, low post
 const FORM = [ { r:7.6, a:0 }, { r:6.9, a:0.95 }, { r:6.9, a:-0.95 }, { r:6.5, a:1.5 }, { r:2.6, a:-0.9 } ];
 // loose zone each defender drifts toward when not tight on their man
-const ZONE = [ { r:6.0, a:0 }, { r:5.0, a:0.85 }, { r:5.0, a:-0.85 }, { r:3.6, a:1.3 }, { r:2.0, a:-0.6 } ];
+const ZONE = [ { r:7.0, a:0 }, { r:6.6, a:1.05 }, { r:6.6, a:-1.05 }, { r:5.6, a:1.45 }, { r:2.4, a:-0.4 } ];
 const PCOL = ['#ffc12e','#3ed17a','#ff7ad9','#7ae0ff'];
 
 // ---------- renderer ----------
@@ -557,7 +551,7 @@ function makePlayer(slot, team, k){
     shooting:false, shootT:0, shootId:0, reachT:0, grabCD:0, noPick:0, stun:0, followT:0, holdT:0,
     runPhase:Math.random()*6, dribbleT:0, ctrl:null, hIdx:-1, celebrate:false,
     ai:{ t:0, cool:0, possT:0, spot:null, releaseAt:T_APEX, blockFor:-1, blockDelay:0, willBlock:false,
-      tx:0, tz:0, tight:0.25 + Math.random()*0.4, wander:Math.random(), react:2 + Math.random()*3,
+      tx:0, tz:0, tight:0.45 + Math.random()*0.35, wander:Math.random(), react:2 + Math.random()*3,
       cutRate:0.04 + Math.random()*0.16, jx:0, jz:0, jt:0, cutT:0, passReq:null, seen:-1, pend:-1, seeAt:0 },
   });
 }
@@ -779,14 +773,22 @@ function releaseShot(p, landed){
   Object.assign(ball, { shotLive:true, shotTeam:p.team, shotThree: hdist(p.pos, H) > THREE_R, shotClean:true, shotFromX:p.pos.x, shotFromZ:p.pos.z });
   p.noPick = 0.45; p.followT = 0.35;
 }
+const passTime = d => clamp(d/17, 0.16, 0.9);
+// Aim where the receiver will be when the ball gets there (lead capped at 3 steps), not where they are now.
 function passBall(p, m){
-  const lx = m.pos.x + m.vel.x*0.35, lz = m.pos.z + m.vel.z*0.35;
+  let lx = m.pos.x, lz = m.pos.z;
+  for (let i = 0; i < 3; i++){
+    const t = passTime(Math.hypot(lx - p.pos.x, lz - p.pos.z));
+    let ox = m.vel.x*t, oz = m.vel.z*t; const ol = Math.hypot(ox, oz);
+    if (ol > 3){ ox *= 3/ol; oz *= 3/ol; }
+    lx = clamp(m.pos.x + ox, -HALF_L, HALF_L); lz = clamp(m.pos.z + oz, -HALF_W, HALF_W);
+  }
   const f = Math.atan2(lx - p.pos.x, lz - p.pos.z); p.facing = f;
   ball.pos.set(p.pos.x + Math.sin(f)*0.45, p.pos.y + 1.25, p.pos.z + Math.cos(f)*0.45);
-  const dx = lx - ball.pos.x, dz = lz - ball.pos.z, dy = 1.25 - ball.pos.y;
-  const t = clamp(Math.hypot(dx, dz)/14, 0.18, 1.1);
+  const dx = lx - ball.pos.x, dz = lz - ball.pos.z, dy = 1.2 - ball.pos.y;
+  const t = passTime(Math.hypot(dx, dz));
   ball.vel.set(dx/t, (dy + 0.5*G*t*t)/t, dz/t);
-  freeBall(); ball.passTo = m;
+  freeBall(); ball.passTo = m; ball.passTarget = { x:lx, z:lz };
   p.noPick = 0.35; p.reachT = 0.25; p.grabCD = 0.3;
 }
 function trySteal(p){
@@ -924,7 +926,7 @@ function onScore(s){
     sfxEvent('final', 0, 1);
     showBanner(`${TEAMS[team].name} WIN!<small>Press start or click for the menu</small>`, 0);
   } else if (!game.demo){
-    showBanner(`${pts === 3 ? 'FROM DOWNTOWN!' : 'BUCKET!'}<small>+${pts} ${TEAMS[team].name}</small>`, 1300);
+    showBanner(`${pts === 3 ? '3 Points!' : '2 Points!'}<small>+${pts} ${TEAMS[team].name}</small>`, 1300);
   }
 }
 function pickups(){
@@ -945,7 +947,12 @@ function pickups(){
       const d2 = Math.hypot(ball.pos.x - hx, ball.pos.z - hz);
       if (d2 < 0.85*p.arch.reach){ d = Math.min(d, d2); R = 0.85*p.arch.reach; reachH = 2.75*p.arch.reach; }
     }
+    if (ball.passTo === p){ R = Math.max(R, 1.0); reachH = Math.max(reachH, 2.5*p.arch.reach); }   // the player the pass is meant for reaches for it
     if (d < R && rel < reachH && d < bestD){ best = p; bestD = d; }
+  }
+  if (best && ball.passTo && best !== ball.passTo && best.team !== ball.passTo.team){
+    const r = ball.passTo, rel = ball.pos.y - r.pos.y;
+    if (r.noPick <= 0 && r.stun <= 0 && hdist(r.pos, ball.pos) < 1.0 && rel < 2.5*r.arch.reach && rel > -0.3) best = r;
   }
   if (!best) return;
   if (blockable){
@@ -1008,13 +1015,24 @@ function pickSpot(side, range){
 }
 function formSpot(k, side){ const f = FORM[k], H = hoopOf(side); return new V3(H.x - side*Math.cos(f.a)*f.r, 0, Math.sin(f.a)*f.r); }
 function openness(q){ let m = 99; for (const o of players) if (o.team !== q.team) m = Math.min(m, hdist(o.pos, q.pos)); return m; }
-function bestOpenMate(p){
+function bestOpenMate(p, trapped){
   const H = hoopOf(attackSide(p.team));
   let best = null, bs = -1e9;
   for (const q of players){
     if (q.team !== p.team || q === p) continue;
     const d = hdist(q.pos, p.pos); if (d > 22) continue;
-    const sc = Math.min(openness(q), 4) - hdist(q.pos, H)*0.22 - d*0.05;
+    let sc = Math.min(openness(q), 4) - hdist(q.pos, H)*0.22 - d*0.05;
+    const back = hdist(q.pos, H) - hdist(p.pos, H);
+    if (back > 1.5 && !trapped) continue;                 // only throw backwards to escape a double team
+    if (back > 0) sc -= back*0.35;
+    if (openness(q) < 1.6) sc -= 3;                       // don't throw to a covered player
+    if (safety.has(q)) sc -= 2.5;                         // leave the players hanging back alone
+    for (const o of players){                             // a defender near the passing lane could pick it off
+      if (o.team === p.team) continue;
+      const ux = q.pos.x - p.pos.x, uz = q.pos.z - p.pos.z, L2 = ux*ux + uz*uz || 1;
+      const k = clamp(((o.pos.x - p.pos.x)*ux + (o.pos.z - p.pos.z)*uz)/L2, 0, 1);
+      if (Math.hypot(p.pos.x + ux*k - o.pos.x, p.pos.z + uz*k - o.pos.z) < 1.1 && k > 0.1 && k < 0.95) sc -= 2;
+    }
     if (sc > bs){ bs = sc; best = q; }
   }
   return best ? { q:best, s:bs } : null;
@@ -1069,15 +1087,27 @@ function defendSpot(p, bpos, h, D, dt){
   const mark = markOf(p);
   let g, gap, w;
   if (role === 'ball'){ g = h.pos; gap = hdist(g, myHoop) > 9 ? 2.6 : 1.4 + (1 - ai.tight)*0.8; w = 0.75 + ai.tight*0.2; }
-  else if (role === 'help'){ g = h.pos; gap = 3.0 + (1 - ai.tight); w = 0.5 + ai.tight*0.3; }
+  else if (role === 'help'){ g = mark && mark !== h ? mark.pos : h.pos; gap = 2.2 + (1 - ai.tight); w = 0.55 + ai.tight*0.3; }
   else { g = mark ? mark.pos : bpos; gap = (h && mark === h) ? 4.5 : 2.4 + (1 - ai.tight)*2.4; w = (h && mark === h) ? ai.tight*0.5 : ai.tight; }
   const dx = myHoop.x - g.x, dz = myHoop.z - g.z, l = Math.hypot(dx, dz) || 1, gg = Math.min(gap, l*0.5);
   const mx = g.x + dx/l*gg, mz = g.z + dz/l*gg;
   const zc = ZONE[p.k];
   const zx = myHoop.x + side*Math.cos(zc.a)*zc.r;
-  let zz = Math.sin(zc.a)*zc.r; zz += (bpos.z - zz)*0.35;
+  let zz = Math.sin(zc.a)*zc.r; zz += (bpos.z - zz)*0.2;
   if (Math.abs(bpos.x - myHoop.x) > HALF_L) w *= 0.6;
   let x = zx + (mx - zx)*w, z = zz + (mz - zz)*w;
+  if (role === 'help' && h){   // lean part way toward the ball handler's path to the hoop
+    const hx = h.pos.x + (myHoop.x - h.pos.x)*0.35, hz = h.pos.z + (myHoop.z - h.pos.z)*0.35;
+    x += (hx - x)*0.3; z += (hz - z)*0.3;
+  }
+  if (role !== 'ball'){        // keep defenders from bunching up: push away from teammates closer than ~2.6
+    for (const q of players){
+      if (q === p || q.team !== p.team) continue;
+      const ex = x - q.pos.x, ez = z - q.pos.z, d = Math.hypot(ex, ez);
+      if (d < 2.6 && d > 0.01){ x += ex/d*(2.6 - d)*0.6; z += ez/d*(2.6 - d)*0.6; }
+    }
+    x = clamp(x, -HALF_L, HALF_L); z = clamp(z, -HALF_W + 0.3, HALF_W - 0.3);
+  }
   let fast = role === 'ball';
   if (role !== 'home'){
     const d = hdist(p.pos, h.pos);
@@ -1115,8 +1145,14 @@ function cpuInput(p, dt){
       inp.shoot = true; ai.releaseAt = T_APEX + randn()*D.timing; return;
     }
     if (ai.possT > 0.5 && ai.cool <= 0){
-      const bm = bestOpenMate(p), mine = Math.min(od, 4) - dH*0.22;
-      if (bm && (od < 1.2 || bm.s > mine + 1.2 || dH > D.range + 3) && Math.random() < dt*(od < 1.2 ? 2.5 : 1.2)){ ai.cool = 0.9; passBall(p, bm.q); return; }
+      let crowd = 0; for (const q of players) if (q.team !== p.team && hdist(q.pos, p.pos) < 2.2) crowd++;
+      const trapped = crowd >= 2;                                                  // two or more defenders on the ball
+      const bm = bestOpenMate(p, trapped), mine = Math.min(od, 4) - dH*0.22;
+      const wideOpen = bm && openness(bm.q) > 2.8 && hdist(bm.q.pos, hoop) < D.range && bm.s > mine + 2;
+      const stalled = ai.possT > 5 && bm && openness(bm.q) > 2;
+      if (bm && bm.s > -8 && ((trapped && Math.random() < dt*3) || (wideOpen && Math.random() < dt*0.5) || (stalled && Math.random() < dt*0.6))){
+        ai.cool = 0.9; passBall(p, bm.q); return;
+      }
     }
     if (!ai.spot || ai.t <= 0){
       if (Math.random() < 0.25 + ai.wander*0.25) ai.spot = pickSpot(side, 2.6);
@@ -1126,7 +1162,9 @@ function cpuInput(p, dt){
     if (hdist(p.pos, ai.spot) < 0.5 && !open) ai.t = Math.min(ai.t, 0.3);
     tx = ai.spot.x; tz = ai.spot.z; direct = true;
   } else if (!h && ball.passTo === p){
-    tx = ball.pos.x; tz = ball.pos.z; direct = true;
+    const tg = ball.passTarget;
+    if (tg && hdist(p.pos, ball.pos) > 1.5){ tx = tg.x; tz = tg.z; } else { tx = ball.pos.x; tz = ball.pos.z; }
+    direct = true;
   } else if (actual !== -1 && seen === p.team){
     const mate = (h && h.team === p.team) ? h : (ball.passTo && ball.passTo.team === p.team ? ball.passTo : null);
     const sp = safety.has(p) ? safetySpot(p, side, safety.get(p)) : offenseSpot(p, side, mate, dt); tx = sp.x; tz = sp.z;
@@ -1177,12 +1215,11 @@ function autoSwitch(){
 // ---------- UI ----------
 const MENU = [
   { label:'Control', key:'control', opts:[['fixed','SAME PLAYER'],['auto','BALL CARRIER']] },
-  { label:'Difficulty', key:'diff', opts:[['rookie','ROOKIE'],['pro','PRO'],['legend','LEGEND']] },
+  { label:'Difficulty', key:'diff', opts:[['rookie','EASY'],['pro','MEDIUM'],['legend','HARD']] },
   { label:'Points to win', key:'target', opts:[[7,'7'],[11,'11'],[15,'15'],[21,'21']] },
   { label:'Frame rate cap', key:'fps', gfx:true, opts:[[30,'30'],[60,'60'],[120,'120'],[144,'144'],[0,'UNLIMITED']] },
   { label:'VSync', key:'vsync', gfx:true, opts:[[true,'ON'],[false,'OFF']] },
   { label:'Shadows', key:'shadows', gfx:true, opts:[['high','HIGH'],['low','LOW'],['off','OFF']] },
-  { label:'Show FPS', key:'showFps', gfx:true, opts:[[false,'OFF'],[true,'ON']] },
   { label:'Effects volume', key:'sfxVol', gfx:true, page:'sound', opts:[['off','OFF'],['low','LOW'],['med','MEDIUM'],['high','HIGH']] },
   { label:'Crowd', key:'crowd', gfx:true, page:'sound', opts:[[true,'ON'],[false,'OFF']] },
 ];
@@ -1257,9 +1294,6 @@ function changeRow(i, d){
 }
 function renderMenu(){
   const elig = autoEligible();
-  $('#gfxNote').textContent = settings.vsync
-    ? 'VSync on keeps frames in step with your screen. The cap can only go as high as your screen refresh rate.'
-    : 'VSync off runs the game loop on its own timer for slightly lower input lag. Your browser still shows frames at the screen refresh rate, so you won’t see tearing, but it uses more power.';
   const fl = focusables(); if (menuFocus >= fl.length) menuFocus = Math.max(0, fl.length - 1);
   const fItem = fl[menuFocus];
   $('#menu').querySelectorAll('.row').forEach(row => {
@@ -1363,13 +1397,11 @@ function renderPause(){ PAUSE_BTNS.forEach((id, i) => $('#' + id).classList.togg
 function pauseGame(){
   if (ui !== 'game') return; ui = 'paused'; pauseEl.hidden = false; pauseFocus = 0;
   $('#pauseTitle').textContent = 'Paused'; $('#quitBtn').textContent = 'Quit to menu';
-  $('#pauseNote').textContent = 'Move up or down to choose, ✕ / Space to select. Start or ○ resumes.';
   renderPause();
 }
 function openGuestMenu(){
   ui = 'paused'; pauseEl.hidden = false; pauseFocus = 0;
   $('#pauseTitle').textContent = 'Menu'; $('#quitBtn').textContent = 'Leave game';
-  $('#pauseNote').textContent = 'The game keeps going for everyone else. Start or ○ closes this menu.';
   renderPause();
 }
 function resumeGame(){
@@ -1413,13 +1445,13 @@ function handleMeta(){
 }
 
 
-// ---------- online play: Trystero over Nostr, host runs the match ----------
-const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/trystero/+esm';   // Trystero's default strategy is Nostr
+// ---------- online play: Trystero, host runs the match ----------
+const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/trystero/+esm';
 const APP_ID = 'block-ball-pixel-hoops-v1';
 const MAX_GUESTS = 4;
-const NAMES = ['Maya','Jordan','Priya','Mateo','Aisha','Liam','Sofia','Kenji','Amara','Noah','Leila','Diego','Hana','Omar','Zoe','Luca',
-  'Nia','Ravi','Elena','Kwame','Ines','Theo','Yara','Felix','Mei','Tariq','Chloe','Andre','Freya','Jamal','Ana','Malik','Sven','Rosa',
-  'Idris','Lucia','Arjun','Imani','Ezra','Keiko','Tomas','Ada','Kofi','Lena','Rafael','Sana','Oskar','Nadia','Emeka','Isla'];
+const NAMES = ['Jack','Emily','Oliver','Sophie','Harry','Grace','Charlie','Lucy','James','Chloe','Thomas','Emma','William','Olivia',
+  'Ben','Mia','Sam','Ella','Max','Hannah','Luke','Amy','Daniel','Zoe','Ryan','Katie','Jake','Holly','Nathan','Megan','Josh','Lily',
+  'Tom','Ruby','Matt','Jess','Adam','Kate','Liam','Isla','Noah','Ava','Ethan','Abby','Lucas','Rose','Henry','Anna','Jacob','Sarah'];
 const NAME_STORE = 'blockball-name';
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const cleanName = v => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
@@ -1498,7 +1530,7 @@ async function openRoom(T0){
       if (!ok){ net.rejected.add(peerId); throw new Error('not needed'); }
       net.roles.set(peerId, data.role);
       if (net.mode === 'host') net.pendingNames.set(peerId, cleanName(data.name) || 'Guest');
-      else if (data.role === 'host'){ net.hostName = cleanName(data.name) || 'Host'; if (!net.hostId) setJoinStatus(`Found ${net.hostName}. Finishing the connection…`); }
+      else if (data.role === 'host'){ net.hostName = cleanName(data.name) || 'Host'; if (!net.hostId) setJoinStatus(`Connecting to ${net.hostName}…`); }
       else net.mateNames.set(peerId, cleanName(data.name) || 'Friend');
     },
     onJoinError: d => { if (d && net.rejected.has(d.peerId)) return; onNetJoinError(d); },
@@ -1526,15 +1558,14 @@ async function openRoom(T0){
   net.trackTimer = setTimeout(() => {
     let open = 0;
     try { for (const ws of Object.values(T0.getRelaySockets ? T0.getRelaySockets() : {})) if (ws && ws.readyState === 1) open++; } catch (e) { open = 1; }
-    net.warn = open ? '' : 'Can’t reach the Nostr relays used to find players. If you’re playing inside Claude, open the game from its own web address (for example GitHub Pages).';
+    net.warn = open ? '' : 'Can’t reach the online service. Check your internet connection.';
     renderNet();
   }, 8000);
 }
 function onNetJoinError(d){
   if (net.mode !== 'guest' || net.hostId) return;
   const msg = String(d && d.error || '');
-  setJoinStatus(/password/i.test(msg) ? 'That code didn’t match. Check it with your host.'
-    : 'Found the host but couldn’t connect directly. One of your networks may be blocking peer-to-peer connections. Still trying…');
+  if (/password/i.test(msg)) setJoinStatus('That code didn’t match. Check it with your host.');
 }
 function leaveRoom(){
   clearTimeout(net.findTimer); clearTimeout(net.trackTimer);
@@ -1636,19 +1667,12 @@ async function joinRoomCode(v){
   searchTick(T0);
   renderNet();
 }
-// While looking for the host: show relay progress every second, and every 20 s leave and rejoin the room so
-// fresh connection offers go out.
+// While looking for the host, rejoin the room every 20 s so fresh connection offers go out.
 function searchTick(T0){
   clearTimeout(net.findTimer);
   if (net.mode !== 'guest' || net.hostId) return;
   const secs = Math.round((performance.now() - net.searchStart)/1000);
-  let open = 0, total = 0;
-  try { for (const ws of Object.values(T0.getRelaySockets ? T0.getRelaySockets() : {})){ total++; if (ws && ws.readyState === 1) open++; } } catch (e) {}
-  if (!/^Found /.test($('#joinStatus').textContent) || secs % 5 === 0){
-    setJoinStatus(total && !open ? `Connecting to the relays used to find your host… ${secs}s`
-      : `Looking for room ${net.code}… ${secs}s` + (total ? ` · ${open}/${total} relays` : '') + (net.attempt > 1 ? ` · try ${net.attempt}` : '')
-        + (secs >= 45 ? '. Check the code, and that your host still has the room open.' : ''));
-  }
+  if (!/^Connecting to /.test($('#joinStatus').textContent)) setJoinStatus(secs >= 45 ? `Still looking for room ${net.code}. Check the code with your host.` : `Joining room ${net.code}…`);
   if (secs >= net.attempt*20 && net.attempt < 6){
     net.attempt++;
     voiceUnpublish();
@@ -1853,7 +1877,6 @@ function renderNet(){
   const connected = guest && !!net.hostId;
   $('#codeRow').hidden = connected;
   $('#joinBackBtn').textContent = guest ? 'Leave room' : 'Back';
-  if (guest && !connected && net.warn) setJoinStatus(net.warn);
   const jl = $('#joinLobby');
   jl.hidden = !(connected && net.cfg);
   const myTouch = connected && net.names.has(`r:${net.selfId}:touch`);
@@ -1868,7 +1891,7 @@ function renderNet(){
       + `<dt>Difficulty</dt><dd>${lbl('diff', st.diff)}</dd><dt>Points</dt><dd>${lbl('target', st.target)}</dd></dl>`
       + (lob.length ? lob.map((e, i) => `<div class="chip" style="--pc:${PCOL[i % 4]}"><b>P${i + 1}</b>${esc(e.name)}${e.dev.startsWith(`r:${net.selfId}:`) ? ' (you)' : ''}<span class="team t${e.team}">${TEAMS[e.team].name}</span></div>`).join('')
         : '<div class="empty">Nobody has taken a spot yet.</div>')
-      + `<p class="note">Press start (Options, Q, Enter or M) or tap Play with touch controls to take a spot. Grab switches team. Waiting for ${esc(net.hostName)} to start the game.</p>`;
+      + `<p class="note">Press start to join. Waiting for ${esc(net.hostName)} to start the game.</p>`;
   }
 }
 function initNetUI(){
@@ -2368,7 +2391,7 @@ function applyGfx(){
     scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
   }
   if (sun.shadow.mapSize.x !== size){ sun.shadow.mapSize.set(size, size); if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; } }
-  fpsEl.hidden = !settings.showFps;
+  fpsEl.hidden = true;
 }
 // Frame pacing: VSync on = requestAnimationFrame with an optional cap; VSync off = a free-running timer loop.
 let last = performance.now(), due = 0, fpsFrames = 0, fpsT = last;
